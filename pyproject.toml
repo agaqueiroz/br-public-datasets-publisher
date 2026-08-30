@@ -1,0 +1,76 @@
+[project]
+name = "br-public-datasets-publisher"
+version = "0.1.0"
+description = "Converte os datasets abertos do INSS para Parquet e publica no Hugging Face"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "André Galindo Alves de Queiroz" }]
+requires-python = ">=3.12"
+dependencies = [
+    # Pinned to a minor range because this tool reaches into brinss's private
+    # modules; library/compat.py is the fine-grained gate, this is the coarse one.
+    "brinss-public-datasets>=0.1,<0.2",
+    "huggingface-hub>=1.28",
+    "pandas>=2.2",
+    "pyarrow>=17.0",
+]
+
+[project.scripts]
+publish-to-hf = "br_publisher.main:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    # Only for the `network` acceptance test: reads the published repository the
+    # way a consumer would. Never imported from src/ -- test_boundaries.py pins that.
+    "datasets>=5.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.3,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "br_publisher"
+
+# While brinss-public-datasets is not on PyPI. Delete this table on the day it
+# lands; the version pin above already says what is acceptable and `uv lock`
+# will resolve it from the index with no other change.
+[tool.uv.sources]
+brinss-public-datasets = { path = "../../libraries/brinss_public_datasets", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["network: requires internet access (deselected by default)"]
+addopts = "-m 'not network' --strict-markers"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B", "SIM", "C4", "RUF", "TID", "PTH", "LOG", "G"]
+ignore = [
+    "SIM108",  # ternaries are not always clearer than an if/else
+]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"brinss.datasets._cache".msg = "importe via br_publisher.library (camada anticorrupcao)"
+"brinss.datasets._catalog".msg = "importe via br_publisher.library"
+"brinss.datasets._reading".msg = "importe via br_publisher.library"
+"brinss.datasets._log".msg = "importe via br_publisher.library"
+"brinss.datasets._families".msg = "importe via br_publisher.library"
+
+[tool.ruff.lint.per-file-ignores]
+# The two modules that are supposed to know brinss internals, and the tests that
+# pin them. Everything else is caught here AND by tests/test_boundaries.py,
+# which also sees `from brinss.datasets import _cache` -- a form ruff misses.
+"src/br_publisher/library/adapter.py" = ["TID251"]
+"src/br_publisher/library/compat.py" = ["TID251"]
+"tests/library/*.py" = ["TID251"]
+# Relative imports inside the test package are the normal way to reach the
+# shared fixtures and fakes; the ban is about production code layering.
+"tests/**/*.py" = ["TID252"]
