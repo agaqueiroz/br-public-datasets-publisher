@@ -17,6 +17,7 @@ class Plan:
     uploads: list[tuple[str, str, str]] = field(default_factory=list)  # family, period, reason
     skipped: list[tuple[str, str]] = field(default_factory=list)  # family, period
     failures: list[tuple[str, str, str]] = field(default_factory=list)  # family, period, error
+    notes: list[tuple[str, str, str]] = field(default_factory=list)  # family, period, apontamento
     reconciled: list[tuple[str, str]] = field(default_factory=list)  # family, period
     written_bytes: int = 0
     reused_bytes: int = 0

@@ -27,7 +27,9 @@ def _seed_source(tmp_path, make_csv_bytes, name="res.csv"):
     return path
 
 
-def _sample_ctx(tmp_path, make_csv_bytes, *, periods=("2024-06",), force=False, cached=True, **kw):
+def _sample_ctx(
+    tmp_path, make_csv_bytes, *, periods=("2024-06",), force=False, cached=True, repository=None, **kw
+):
     resources = tuple(make_resource(period) for period in periods)
     store = FakeSourceStore(tmp_path / "cache")
     if cached:
@@ -41,7 +43,7 @@ def _sample_ctx(tmp_path, make_csv_bytes, *, periods=("2024-06",), force=False, 
         settings=settings,
         resources={"perfil_unidades": resources},
         store=store,
-        repository=OfflineRepository(),
+        repository=repository if repository is not None else OfflineRepository(),
         **kw,
     )
 
@@ -257,3 +259,66 @@ def test_an_empty_run_reports_nothing_processed(tmp_path):
     ctx = make_context(tmp_path, resources={}, repository=InMemoryRepository())
     plan, _ = PublishDatasets(ctx)()
     assert plan == Plan()
+
+
+# -- apontamento: contagem de colunas -----------------------------------------
+
+
+def _ctx_with_published_columns(tmp_path, make_csv_bytes, columns: int):
+    # The seeded CSV converts to 3 columns: two of its own plus periodo_referencia.
+    return _sample_ctx(
+        tmp_path,
+        make_csv_bytes,
+        repository=InMemoryRepository(
+            Manifest(
+                {
+                    "perfil_unidades/2024-05": ManifestEntry(
+                        source_sha256="sha256:old",
+                        source_url="https://fixtures.test/old.csv",
+                        resource_id="old",
+                        columns=columns,
+                        conversion=CONVERSION_RECIPE,
+                    )
+                }
+            )
+        ),
+    )
+
+
+def test_a_collapse_in_column_count_becomes_an_apontamento(tmp_path, make_csv_bytes):
+    # The 2026-07 mantidos months went out with 2 columns where every earlier
+    # month had 18, and nothing in the run said so.
+    plan, _ = PublishDatasets(_ctx_with_published_columns(tmp_path, make_csv_bytes, 18))()
+
+    assert len(plan.notes) == 1
+    family_key, period, note = plan.notes[0]
+    assert (family_key, period) == ("perfil_unidades", "2024-06")
+    assert "queda de 18 para 3 colunas" in note
+
+
+def test_a_smaller_change_in_column_count_is_noted_more_plainly(tmp_path, make_csv_bytes):
+    plan, _ = PublishDatasets(_ctx_with_published_columns(tmp_path, make_csv_bytes, 4))()
+
+    assert [note for _, _, note in plan.notes] == ["4 colunas no mes anterior publicado, 3 agora"]
+
+
+def test_an_apontamento_does_not_fail_the_month(tmp_path, make_csv_bytes):
+    # The sources really do change shape -- beneficios_emitidos went from 14
+    # columns to 15 -- so this reports rather than refuses. The hard stop for a
+    # CSV that cannot be parsed without loss lives in the reader.
+    plan, _ = PublishDatasets(_ctx_with_published_columns(tmp_path, make_csv_bytes, 18))()
+
+    assert plan.failures == []
+    assert (tmp_path / "tmp" / "data" / "perfil_unidades" / "2024-06.parquet").exists()
+
+
+def test_an_unchanged_column_count_says_nothing(tmp_path, make_csv_bytes):
+    plan, _ = PublishDatasets(_ctx_with_published_columns(tmp_path, make_csv_bytes, 3))()
+
+    assert plan.notes == []
+
+
+def test_the_first_month_of_a_family_has_nothing_to_compare_against(tmp_path, make_csv_bytes):
+    plan, _ = PublishDatasets(_sample_ctx(tmp_path, make_csv_bytes))()
+
+    assert plan.notes == []

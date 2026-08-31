@@ -88,6 +88,8 @@ class Reporter:
         self.info("  %-16s %d", profile.summary_verb, len(plan.uploads))
         self.info("  %-16s %d", "pulados", len(plan.skipped))
         self.info("  %-16s %d", "falhas", len(plan.failures))
+        if plan.notes:
+            self.info("  %-16s %d", "apontamentos", len(plan.notes))
         if plan.reconciled:
             self.info("  %-16s %d", "reconciliados", len(plan.reconciled))
         self.info(
@@ -102,6 +104,8 @@ class Reporter:
         self.info("  %-16s %s", "parou em", plan.last_item or "(nada processado)")
         for family_key, period, error in plan.failures:
             self.info("  falha    %s/%s: %s", family_key, period, error)
+        for family_key, period, note in plan.notes:
+            self.info("  aponta   %s/%s: %s", family_key, period, note)
 
         total = builds.total_bytes()
         self.info("  %-16s %s em %s", "cache parquet", format_bytes(total), builds.data_root)

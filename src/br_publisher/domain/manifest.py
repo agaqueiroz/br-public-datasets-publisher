@@ -8,7 +8,7 @@ from typing import Any, Final
 
 from br_publisher.errors import ManifestError
 
-from .keys import manifest_key, parse_repo_path
+from .keys import manifest_key, parse_repo_path, split_key
 from .recipe import MANIFEST_PATH, MANIFEST_SCHEMA_VERSION
 
 REASON_NEW: Final[str] = "novo"
@@ -165,3 +165,24 @@ def published_families(manifest: Manifest, known_families: Container[str]) -> li
     """
     keys = {key.split("/", 1)[0] for key in manifest.entries()}
     return sorted(key for key in keys if key in known_families)
+
+
+def previous_columns(manifest: Manifest, family_key: str, period: str) -> int | None:
+    """How many columns the closest earlier month of this family was published with.
+
+    The comparison this feeds is what turns a silent schema collapse into a line
+    in the report: the mantidos months of 2026-07 went out with 2 columns where
+    every earlier month had 18, and nothing in the run said so.
+
+    Entries adopted by --reconciliar carry no counts -- recovering them means
+    re-reading the source, which is the expensive half that flag exists to skip
+    -- so they are passed over rather than treated as zero.
+    """
+    candidates = [
+        (entry_period, entry.columns)
+        for key, entry in manifest.entries().items()
+        if (parts := split_key(key))[0] == family_key
+        and (entry_period := parts[1]) < period
+        and entry.columns is not None
+    ]
+    return max(candidates)[1] if candidates else None
