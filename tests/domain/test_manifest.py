@@ -6,6 +6,7 @@ from br_publisher.domain.manifest import (
     Manifest,
     ManifestEntry,
     find_orphans,
+    previous_columns,
     published_families,
 )
 from br_publisher.domain.recipe import CONVERSION_RECIPE, MANIFEST_SCHEMA_VERSION
@@ -104,3 +105,33 @@ def test_entries_returns_a_copy_so_callers_cannot_smuggle_one_in():
     manifest = Manifest.empty()
     manifest.entries()["perfil_unidades/2024-06"] = _entry()
     assert len(manifest) == 0
+
+
+def test_previous_columns_takes_the_closest_earlier_month():
+    manifest = Manifest(
+        {
+            "perfil_unidades/2024-04": _entry(columns=15),
+            "perfil_unidades/2024-05": _entry(columns=18),
+            "perfil_unidades/2024-07": _entry(columns=99),
+            "beneficios_concedidos/2024-05": _entry(columns=28),
+        }
+    )
+    assert previous_columns(manifest, "perfil_unidades", "2024-06") == 18
+
+
+def test_previous_columns_skips_entries_that_never_recorded_a_count():
+    # --reconciliar adopts a month without rows/columns: recovering them means
+    # re-reading the source, which is the expensive half that flag exists to skip.
+    manifest = Manifest(
+        {
+            "perfil_unidades/2024-04": _entry(columns=15),
+            "perfil_unidades/2024-05": _entry(adopted=True),
+        }
+    )
+    assert previous_columns(manifest, "perfil_unidades", "2024-06") == 15
+
+
+def test_previous_columns_is_none_for_the_first_month_of_a_family():
+    manifest = Manifest({"perfil_unidades/2024-07": _entry(columns=18)})
+    assert previous_columns(manifest, "perfil_unidades", "2024-06") is None
+    assert previous_columns(Manifest.empty(), "perfil_unidades", "2024-06") is None

@@ -11,6 +11,7 @@ from br_publisher.domain.manifest import (
     REASON_NOT_DOWNLOADED,
     Manifest,
     find_orphans,
+    previous_columns,
     published_families,
 )
 from br_publisher.domain.plan import STATUS_FAILED, STATUS_INTERRUPTED, Plan
@@ -157,7 +158,7 @@ class PublishDatasets:
             ctx.reporter.info("  PLAN  %s (%s)", target, decision.reason)
             return
 
-        local, record, reused = self._materialize(resource, digest, source)
+        local, record, reused = self._materialize(resource, digest, source, plan)
         size = record.parquet_bytes
         if reused:
             plan.reused_bytes += size
@@ -173,7 +174,7 @@ class PublishDatasets:
         ctx.repository.stage(local, target, manifest_key(family_key, period), record.to_manifest_entry(), size)
 
     def _materialize(
-        self, resource: SourceResource, digest: str, source: Path
+        self, resource: SourceResource, digest: str, source: Path, plan: Plan
     ) -> tuple[Path, BuildRecord, bool]:
         """The cached Parquet for one month, converting it only if needed.
 
@@ -193,6 +194,7 @@ class PublishDatasets:
 
         started_at = time.perf_counter()
         result = ctx.converter.convert(resource, source, local)
+        self._check_columns(family_key, period, result.columns, plan)
         record = BuildRecord(
             source_sha256=digest,
             source_url=resource.url,
@@ -215,6 +217,28 @@ class PublishDatasets:
             format_seconds(time.perf_counter() - started_at),
         )
         return local, record, False
+
+    def _check_columns(self, family_key: str, period: str, columns: int, plan: Plan) -> None:
+        """Note when a month came out with a different column count than the last one.
+
+        An apontamento, not a failure: the sources really do change shape --
+        beneficios_emitidos went from 14 columns to 15, perfil_unidades swings
+        far wider than that -- and refusing those months would only teach the
+        operator to ignore the check. The hard stop for the defect that prompted
+        this lives in the reader, which now refuses a CSV it cannot parse
+        without losing columns; this is the second pair of eyes for whatever
+        gets past it.
+        """
+        ctx = self._ctx
+        before = previous_columns(ctx.repository.manifest, family_key, period)
+        if before is None or before == columns:
+            return
+
+        note = f"{before} colunas no mes anterior publicado, {columns} agora"
+        if columns * 2 <= before:
+            note = f"queda de {before} para {columns} colunas; confira antes de publicar"
+        plan.notes.append((family_key, period, note))
+        ctx.reporter.warning("  aponta %s/%s: %s", family_key, period, note)
 
     def _report_orphans(self) -> list[tuple[str, str, str]]:
         ctx = self._ctx
