@@ -34,7 +34,7 @@ Peculiaridades já conferidas no CKAN (em 2026-09-13), e por que não quebram na
   (`..._Nominal_AAAAMM`) trazem nome de servidor. São públicos no portal, mas vale ter
   isso em mente ao republicar.
 
-### Decisão em aberto: `requerimentos_solicitados` 2026-04
+### Fora da carga: `requerimentos_solicitados` 2026-04 (link trocado)
 
 O INSS publica dois pacotes irmãos:
 
@@ -70,6 +70,19 @@ nome, e nada no caminho falharia.
       publicar o mês.
 - [ ] (Opcional) Avisar o INSS, pelo canal do portal, sobre o link trocado.
 
+### Fora da carga: `requerimentos_solicitados` 2026-07 (arquivo inacessível)
+
+O recurso "Julho 2026" do pacote dos solicitados aponta para
+`…solicitados/PDA_ITEM_9_CRIA_202607.csv`, que responde **403 AccessDenied** no S3
+(conferido em 2026-09-13). É a mesma resposta de uma chave inexistente: `…202608.csv`,
+que não existe, também dá 403, enquanto `…202606.csv` dá 200. Na prática, o arquivo não
+está no bucket, ou não está público. O download falha, então o mês não tem como sair
+errado: numa rodada sem `--periodo` ele entraria em `falhas`.
+
+- [ ] Reconferir periodicamente (HEAD na URL do recurso). Quando responder 200, publicar
+      com `--push --familia requerimentos_solicitados --periodo 2026-07`.
+- [ ] (Opcional) Avisar o INSS junto com o link trocado de 2026-04.
+
 ### 1. Pré-requisitos
 
 - [x] PR #1 (apontamento de contagem de colunas) mergeado em `main`.
@@ -87,8 +100,11 @@ nome, e nada no caminho falharia.
 
 ### 2. Código
 
-- [ ] Biblioteca: adicionar as 5 entradas em `FAMILIES`
+- [x] Biblioteca: adicionar as 5 entradas em `FAMILIES`
       (`src/brinss/datasets/_families.py`), com as chaves e slugs da tabela acima.
+- [ ] Biblioteca: **commitar** as 5 entradas de `FAMILIES`. Hoje estão só no diretório de
+      trabalho, em `master`, junto com a correção de delimitadores não commitada. A
+      carga de 2026-09-13 foi feita com esse estado.
 - [ ] Biblioteca: se houver loaders nomeados (`load_beneficios_*` em
       `datasets/__init__.py`), adicionar os equivalentes e atualizar README e docs.
 - [ ] Biblioteca: atualizar `EXPECTED_FAMILY_KEYS` em `tests/test_public_api.py`, que
@@ -153,22 +169,47 @@ Roteiro por família (troque `F` pela família e `P` pelo mês):
 6. **Conferir no Hub** (`agaqueiroz/brinss-public-datasets`): o arquivo em
    `data/F/P.parquet`, a entrada `F/P` no `manifest.json` e a config `F` no viewer.
 
-- [ ] `pessoal_ativo_consolidado` 2024-12
-- [ ] `ocupantes_funcoes_cargos` 2024-06
-- [ ] `pessoal_sem_identificacao` 2026-08
-- [ ] `requerimentos_solicitados` 2023-12
-- [ ] `requerimentos_pendentes` 2024-07
+- [x] `pessoal_ativo_consolidado` 2024-12: validado manualmente (ensaio, `--sample` com
+      19.710 linhas, `--push`) em 2026-09-13.
+- [x] `ocupantes_funcoes_cargos`, `pessoal_sem_identificacao`,
+      `requerimentos_solicitados` e `requerimentos_pendentes`: **não** passaram pelo
+      roteiro manual. Foram validados na carga (seção 4), pela inspeção local de todos os
+      meses antes do envio.
 
-### 4. Carga dos demais meses (automática, após a validação)
+### 4. Carga dos demais meses (2026-09-13)
 
-- [ ] Ensaio geral das 5 famílias: conferir as linhas `PLAN` e a ausência de avisos de
-      catálogo.
-- [ ] `--push` das 5 famílias, sem `--force`: os meses validados saem como `inalterado`.
-      Em `requerimentos_solicitados`, listar os meses com `--periodo` e deixar 2026-04
-      de fora.
-- [ ] Revisar `falhas` e `apontamentos` no resumo. Uma mudança de colunas na passagem de
-      XLSX para CSV é esperada, mas confira cada queda grande.
-- [ ] Conferir no Hub a contagem de arquivos por família contra a tabela do topo.
+- [x] Ensaio geral das 5 famílias: 188 a enviar e 1 pulado (o 2024-12 já publicado), 0
+      falhas.
+- [x] Download de todas as fontes para o cache: 186 arquivos, ~2,6 GB. 2026-04 dos
+      solicitados excluído e 2026-07 com falha 403 (ver acima).
+- [x] Conversão local com `--sample`: 186 gerados, 0 falhas, ~19 min.
+- [x] Inspeção de linhas e colunas mês a mês nos Parquet locais. Os pontos suspeitos
+      conferem com a fonte, então não são erro de conversão:
+  - `pessoal_ativo_consolidado` cai de ~25,3 mil para ~19,8 mil linhas em 2024-09 (troca
+    de XLSX para CSV). O CSV tem 19.851 linhas brutas, isto é, 19.850 registros e o
+    cabeçalho. Quem mudou foi a publicação: `pessoal_sem_identificacao` segue com ~25 mil.
+  - `requerimentos_pendentes` 2025-03 traz `Unnamed: 1` e `Unnamed: 5`: duas colunas sem
+    cabeçalho e 100% vazias na planilha original.
+  - `requerimentos_pendentes` 2023-08 tem 215 mil linhas (contra 630 mil ou mais
+    depois). O arquivo de origem tem 5,2 MB, contra 18,9 MB em 2023-09.
+  - Os esquemas dos requerimentos variam entre meses (`Quantidade de tarefas` some e
+    volta, `Data de criação` vira `Data da criação`, `Município…` só em 2023-10). A
+    variação é da fonte.
+  - Os acentos nos nomes de coluna estão corretos no Parquet. O `�` visto no terminal
+    era só a exibição.
+- [x] `--push --update-card` das 4 famílias sem `--periodo`: 150 enviados, 8 commits, 0
+      falhas.
+- [x] `--push --update-card` de `requerimentos_solicitados` com 36 `--periodo`
+      explícitos, sem 2026-04 e 2026-07: 36 enviados, 2 commits, 0 falhas.
+- [x] Hub conferido. Hub, manifesto e card batem: `pessoal_ativo_consolidado` 39,
+      `ocupantes_funcoes_cargos` 39, `pessoal_sem_identificacao` 39,
+      `requerimentos_solicitados` 36, `requerimentos_pendentes` 34. As 5 configs estão no
+      card, e 2026-04/2026-07 não estão no Hub.
+- Nota: os `apontamentos` de colunas não rodaram nesta carga: a conversão foi feita no
+      `--sample`, antes de haver meses publicados no manifesto para comparar. A inspeção
+      acima fez esse papel.
+- [ ] Conferir o Dataset Viewer das 5 configs. Logo após o envio, a API respondia "server
+      is busier than usual", ou seja, ainda processando.
 - [ ] Marcar esta seção como concluída e mover o que sobrar para "Outras pendências".
 
 ## Validar o YAML do card com `huggingface_hub.DatasetCard`
@@ -237,6 +278,11 @@ Ao fazer, verificar:
       `library/compat.py` e simplificar `library/adapter.py`.
 - [ ] **Publicar `brinss-public-datasets` no PyPI** e remover a tabela
       `[tool.uv.sources]` do `pyproject.toml`.
+- [ ] **`--download-only`**: baixar as fontes para o cache sem converter nem enviar.
+      Hoje o ensaio não baixa e o `--sample` só converte o que já está em cache. A carga
+      em lote de 2026-09-13 precisou de um script à parte, e o README sugere
+      `load_dataset(..., periodo='all')`, que carrega tudo em memória e não serve para
+      os `beneficios_mantidos_*`.
 - [ ] Retry/backoff em 5xx e rate limiting do Hub.
 - [ ] `--resume-from` explícito (hoje o índice de build já retoma sozinho).
 - [ ] `schema_version = 2` do manifesto, se e quando a receita de conversão mudar.

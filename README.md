@@ -171,7 +171,8 @@ Se algum passo sair diferente do esperado, pare nesse conjunto e guarde a saída
 > **`requerimentos_solicitados` 2026-04 está fora da carga por enquanto.** No CKAN, o
 > recurso desse mês aponta para o arquivo dos pendentes (`PDA_ITEM_10_PEND_202604.csv`).
 > Não há `--excluir`, então **não rode `requerimentos_solicitados` sem `--periodo`**
-> até o INSS corrigir o link. Veja o `TODO.md`.
+> até o INSS corrigir o link. O mês 2026-07 também está fora: o arquivo cadastrado
+> responde 403 no S3. Veja o `TODO.md`.
 
 ### Rodadas dirigidas
 
@@ -194,6 +195,22 @@ ensaio não converte, então os apontamentos abaixo não aparecem nele.
 
 Um mês grande leva tempo. `beneficios_mantidos_cessados` são 30 GB de CSV e mais
 de cem milhões de linhas: dezenas de minutos só de conversão, antes do upload.
+
+Nestes casos (trabalho em lote) recomenda-se a sequência:
+
+a) Se as famílias existirem em `_families.py` da biblioteca **brinss-public-datasets**:
+
+1. Baixar as fontes para o cache. O ensaio (`uv run publish-to-hf` sem flags) **não**
+   baixa nada, e o `--sample` só converte o que já está em cache. Um jeito é ler os
+   meses pela biblioteca, que baixa para o mesmo cache do publicador:
+   `uv run python -c "from brinss.datasets import load_dataset; load_dataset('$F', periodo='all', source='inss')"`.
+   Isso também carrega os meses em memória: serve para conjuntos pequenos (pessoal,
+   requerimentos), mas não para os `beneficios_mantidos_*`;
+2. Converter tudo localmente com `uv run publish-to-hf --sample`;
+3. Conferir as linhas e colunas mês a mês.
+4. Só então, rodar o `uv run publish-to-hf --push`.
+
+b) Se as famílias não existirem em `_families.py`, será necessário atualizar a biblioteca **brinss-public-datasets**.
 
 ### Apontamentos
 
