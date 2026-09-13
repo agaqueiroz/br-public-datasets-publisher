@@ -40,7 +40,7 @@ module-name = "br_publisher"
 # lands; the version pin above already says what is acceptable and `uv lock`
 # will resolve it from the index with no other change.
 [tool.uv.sources]
-brinss-public-datasets = { path = "../../libraries/brinss_public_datasets", editable = true }
+brinss-public-datasets = { path = "../../libraries/brinss-public-datasets", editable = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
