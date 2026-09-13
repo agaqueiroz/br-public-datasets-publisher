@@ -155,9 +155,44 @@ wheels = [
 ]
 
 [[package]]
+name = "br-public-datasets-publisher"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "brinss-public-datasets" },
+    { name = "huggingface-hub" },
+    { name = "pandas" },
+    { name = "pyarrow" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "datasets" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "brinss-public-datasets", editable = "../../libraries/brinss-public-datasets" },
+    { name = "huggingface-hub", specifier = ">=1.28" },
+    { name = "pandas", specifier = ">=2.2" },
+    { name = "pyarrow", specifier = ">=17.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "datasets", specifier = ">=5.0" },
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-cov", specifier = ">=5.0" },
+    { name = "ruff", specifier = ">=0.6" },
+]
+
+[[package]]
 name = "brinss-public-datasets"
-version = "0.1.0rc1"
-source = { editable = "../../libraries/brinss_public_datasets" }
+version = "0.1.0rc2"
+source = { editable = "../../libraries/brinss-public-datasets" }
 dependencies = [
     { name = "openpyxl" },
     { name = "pandas" },
@@ -181,48 +216,11 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "huggingface-hub", specifier = ">=1.28" },
     { name = "pytest", specifier = ">=8.0" },
     { name = "pytest-cov", specifier = ">=5.0" },
     { name = "responses", specifier = ">=0.25" },
     { name = "ruff", specifier = ">=0.6" },
     { name = "xlwt", specifier = ">=1.3.0" },
-]
-publish = [{ name = "huggingface-hub", specifier = ">=1.28" }]
-
-[[package]]
-name = "br-public-datasets-publisher"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "brinss-public-datasets" },
-    { name = "huggingface-hub" },
-    { name = "pandas" },
-    { name = "pyarrow" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "datasets" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "brinss-public-datasets", editable = "../../libraries/brinss_public_datasets" },
-    { name = "huggingface-hub", specifier = ">=1.28" },
-    { name = "pandas", specifier = ">=2.2" },
-    { name = "pyarrow", specifier = ">=17.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "datasets", specifier = ">=5.0" },
-    { name = "pytest", specifier = ">=8.0" },
-    { name = "pytest-cov", specifier = ">=5.0" },
-    { name = "ruff", specifier = ">=0.6" },
 ]
 
 [[package]]

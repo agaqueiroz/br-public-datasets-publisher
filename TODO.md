@@ -58,17 +58,16 @@ conferido por HEAD em 2026-09-13), mas não está cadastrado no CKAN. Publicado 
 `data/requerimentos_solicitados/2026-04.parquet` seria uma cópia dos pendentes com outro
 nome, e nada no caminho falharia.
 
-- [ ] Decidir entre:
-  - **Pular e avisar**: a biblioteca ignora um recurso cujo link cai na pasta ou no
-    arquivo de outro conjunto, e emite um aviso. O mês entra sozinho quando o INSS
-    corrigir o cadastro.
-  - **Usar o arquivo certo do bucket**: troca pontual da URL desse recurso. O dado fica
-    correto, mas a origem registrada no manifesto passa a ser uma URL que o CKAN não lista.
-  - **Publicar como está** (regra "fonte única, sem alterações") e registrar só o
-    apontamento.
-  - **Pular só nesta carga**, sem mudar código. Uma rodada futura sem `--periodo` o
-    publicaria errado.
-- [ ] Implementar a opção escolhida.
+- [x] Decidido em 2026-09-13: **excluir 2026-04 temporariamente**, sem mudar código. A
+      carga de `requerimentos_solicitados` passa `--periodo` mês a mês, sem 2026-04.
+  - Cuidado: o publicador não tem `--excluir`. **Nenhuma rodada de
+    `requerimentos_solicitados` sem `--periodo`** até o INSS corrigir o link; caso
+    contrário, 2026-04 sai com os dados dos pendentes.
+  - Alternativas descartadas por ora: pular e avisar na biblioteca, usar o arquivo
+    certo do bucket, publicar como está.
+- [ ] Reavaliar quando o INSS corrigir o cadastro. Conferir com `package_show` se o
+      recurso `eed2e037-…` passou a apontar para `PDA_ITEM_9_CRIA_202604.csv`, e então
+      publicar o mês.
 - [ ] (Opcional) Avisar o INSS, pelo canal do portal, sobre o link trocado.
 
 ### 1. Pré-requisitos
@@ -77,12 +76,13 @@ nome, e nada no caminho falharia.
 - [ ] Commitar e abrir o PR da correção de delimitadores na biblioteca. O trabalho está
       pronto e não commitado no diretório de trabalho de lá (ver o `TODO.md` da
       biblioteca). Os conjuntos novos são CSV nos meses recentes.
-- [ ] Consertar o caminho da biblioteca: `pyproject.toml` (`[tool.uv.sources]`) e
+- [x] Consertar o caminho da biblioteca: `pyproject.toml` (`[tool.uv.sources]`) e
       `uv.lock` apontam para `../../libraries/brinss_public_datasets`, mas o diretório é
       `brinss-public-datasets`. O `.venv` aponta para um checkout antigo em
       `Workspaces\Claude\libraries\...`, que não existe mais, e hoje `import brinss` falha.
-      Corrigir o caminho, rodar `uv sync` e ajustar o diagrama de pastas na seção
-      "Desenvolvimento" do README.
+      Corrigir o caminho e rodar `uv sync`.
+- [x] Ajustar o diagrama de pastas na seção "Desenvolvimento" do README
+      (`br-public-datasets-publisher`, `brinss-public-datasets`).
 - [ ] Criar uma branch nova a partir de `main`, neste repositório e na biblioteca.
 
 ### 2. Código
@@ -91,6 +91,8 @@ nome, e nada no caminho falharia.
       (`src/brinss/datasets/_families.py`), com as chaves e slugs da tabela acima.
 - [ ] Biblioteca: se houver loaders nomeados (`load_beneficios_*` em
       `datasets/__init__.py`), adicionar os equivalentes e atualizar README e docs.
+- [ ] Biblioteca: atualizar `EXPECTED_FAMILY_KEYS` em `tests/test_public_api.py`, que
+      fixa a lista de famílias e quebra com as entradas novas.
 - [ ] Biblioteca: testes do catálogo com um `package_show` gravado (fixture) de cada
       pacote, cobrindo o formato trocado e o nome "atualização mês/ano".
 - [ ] Publicador: conferir que `tests/infra/test_card.py`,
@@ -162,7 +164,8 @@ Roteiro por família (troque `F` pela família e `P` pelo mês):
 - [ ] Ensaio geral das 5 famílias: conferir as linhas `PLAN` e a ausência de avisos de
       catálogo.
 - [ ] `--push` das 5 famílias, sem `--force`: os meses validados saem como `inalterado`.
-      Respeitar a decisão sobre `requerimentos_solicitados` 2026-04.
+      Em `requerimentos_solicitados`, listar os meses com `--periodo` e deixar 2026-04
+      de fora.
 - [ ] Revisar `falhas` e `apontamentos` no resumo. Uma mudança de colunas na passagem de
       XLSX para CSV é esperada, mas confira cada queda grande.
 - [ ] Conferir no Hub a contagem de arquivos por família contra a tabela do topo.
