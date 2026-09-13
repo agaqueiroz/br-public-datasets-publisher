@@ -1,6 +1,12 @@
 # br-public-datasets-publisher
 
-Converte os datasets abertos do INSS para Parquet e publica no Hugging Face.
+## AVISO LEGAL
+
+Este é um projeto pessoal, não oficial, e para fins de estudos, sem garantias de atualização e tem com fonte única, sem alterações, os Portais de Dados Abertos do Governo Federal.
+
+## Objetivo
+
+Converte os datasets abertos do INSS para Parquet e republicá-los no Hugging Face.
 
 Consome a biblioteca [brinss-public-datasets](https://github.com/agaqueiroz/brinss-public-datasets)
 para catalogar, baixar e ler os arquivos do portal, e cuida do resto: conversão em
